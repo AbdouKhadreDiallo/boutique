@@ -20,7 +20,7 @@ public class Boutique {
     private Long partGerant;
     private Long partDiallo;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "proprietaire_id")
     private User proprietaire;
 

@@ -57,21 +57,43 @@ public class BoutiqueController {
     public ResponseEntity<?> createBoutique(@Validated @RequestBody Boutique boutique){
         UserDetails userPrincipal = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         System.out.println("connected"+userPrincipal);
-        Boutique boutique1;
-        Boutique boutique2;
+        Boutique boutique1 = new Boutique();
+        Long partGerant;
+        Long partProprietaire;
+        Long partDiallo;
+
+        if (boutique.getPartDiallo()!=null){
+            if (boutique.getPartGerant()!=null && boutique.getProprietaire()!=null){
+                if (boutique.getCapital()!= (boutique.getPartDiallo()+boutique.getPartGerant()+boutique.getPartProprietaire())){
+                    return ResponseEntity.badRequest().body(new MessageResponse("erreur de calcul"));
+                }
+            }
+        }
+        else{
+            if (boutique.getPartGerant()!=null && boutique.getProprietaire()!=null){
+                if (boutique.getCapital()!= (boutique.getPartGerant()+boutique.getPartProprietaire())){
+                    return ResponseEntity.badRequest().body(new MessageResponse("erreur de calcul"));
+                }
+            }
+        }
+
         if (proprietaireRepository.existsByUsername(userPrincipal.getUsername())){
             Optional<Proprietaire> proprietaire = proprietaireRepository.findByUsername(userPrincipal.getUsername());
-            boutique.setProprietaire(proprietaire.get());
-            boutique1 = boutiqueRepository.save(boutique);
+            boutique1.setProprietaire(proprietaire.get());
+            System.out.println("proprio ===> "+boutique.getProprietaire().getUsername());
+            boutique1 = boutiqueRepository.save(boutique1);
             Set<Boutique> boutiques = new HashSet<>();
-            boutique2 = boutiqueRepository.findById(boutique1.getId())
-                    .orElseThrow(() -> new RuntimeException("Error: Role ."));
-            boutiques.add(boutique2);
+            Optional<Boutique> boutique2 = boutiqueRepository.findById(boutique1.getId());
+            boutiques.add(boutique2.get());
             proprietaire.get().setBoutiques(boutiques);
+            boutiques.add(boutique1);
+            proprietaire.get().setBoutiques(boutiques);
+            boutique1.setPartProprietaire(boutique.getPartProprietaire());
+            proprietaire.get().setMoney(boutique.getPartProprietaire());
         }
         else{
             Optional<Gerant> gerant = gerantRepository.findByUsername(userPrincipal.getUsername());
-            boutique.setProprietaire(gerant.get());
+            boutique1.setProprietaire(gerant.get());
             Set<Role> roles = new HashSet<>();
             Role userRole = roleRepository.findByName(ERole.ROLE_PROPRIETAIRE)
                     .orElseThrow(() -> new RuntimeException("Error: Role ."));
@@ -80,16 +102,85 @@ public class BoutiqueController {
             roles.add(userRole);
             roles.add(oldRole);
             gerant.get().setRoles(roles);
-            boutique1 = boutiqueRepository.save(boutique);
+            boutique1 = boutiqueRepository.save(boutique1);
+            //Boutique boutique2 = boutiqueRepository.getById(boutique1.getId());
             Set<Boutique> boutiques = new HashSet<>();
-            boutique2 = boutiqueRepository.findById(boutique1.getId())
-                    .orElseThrow(() -> new RuntimeException("Error: Role ."));
+            Boutique boutique2 = boutiqueRepository.findById(boutique1.getId())
+                    .orElseThrow(() -> new RuntimeException("No butique"));
             boutiques.add(boutique2);
             gerant.get().setBoutiques(boutiques);
+            boutique1.setProprietaire(gerant.get());
+            boutique1.setPartProprietaire(boutique.getPartProprietaire());
+            gerant.get().setMoney(boutique.getPartProprietaire());
         }
-        if (boutique.getCapital()==null || boutique.getPartProprietaire()==null || boutique.getPartGerant() == null){
-            return ResponseEntity.badRequest().body(new MessageResponse("something went wrong"));
+        boutique1.setCapital(boutique.getCapital());
+        if ( boutique.getCapital()==null || boutique.getPartProprietaire()==null || boutique.getPartGerant() == null){
+            return ResponseEntity.badRequest().body(new MessageResponse("le capital ou les parts ne peuvent pas être null"));
         }
+
+        if (boutique.getPartGerant() != null){
+            boutique1.setPartGerant(boutique.getPartGerant());
+            if (boutique.getGerant() == null){
+                return ResponseEntity.badRequest().body(new MessageResponse("La part du gerant doit avoit un gérant"));
+            }
+            else{
+                if (gerantRepository.existsByUsername(boutique.getGerant().getUsername())){
+                    Optional<Gerant> gerant = gerantRepository.findByUsername(boutique.getGerant().getUsername());
+                    if (gerant.get().getBoutique()!=null){
+                        return ResponseEntity.badRequest().body(new MessageResponse("Ce gerant est indisponible"));
+                    }
+                    else {
+                        boutique1.setGerant(gerant.get());
+                        gerant.get().setBoutique(boutique1);
+                    }
+                }
+                else{
+                    Set<Role> roles = new HashSet<>();
+                    Role userRole = roleRepository.findByName(ERole.ROLE_GERANT)
+                            .orElseThrow(() -> new RuntimeException("Error: Role ."));
+                    roles.add(userRole);
+                    System.out.println("create gerant");
+                    Gerant gerant = new Gerant(boutique.getGerant().getUsername(), "lildou68@gmail.com", encoder.encode("azerty"));
+                    gerant.setRoles(roles);
+                    gerant.setBoutique(boutique1);
+                    gerant.setMoney(boutique.getPartGerant());
+                    gerantRepository.save(gerant);
+                    System.out.println("gerant ==> "+ gerant.getUsername());
+                    boutique1.setGerant(gerant);
+                }
+            }
+
+        }
+        if (boutique.getDiallos()!=null){
+            boutique1.setPartDiallo(boutique.getPartDiallo());
+            if (boutique.getDiallos()==null){
+                return ResponseEntity.badRequest().body(new MessageResponse("La part des Diallos doit avoit un Diallo"));
+            }
+            else{
+                //boutiqueRepository.save(boutique1);
+                Set<Role> roles = new HashSet<>();
+                Role userRole = roleRepository.findByName(ERole.ROLE_DIALLO)
+                        .orElseThrow(() -> new RuntimeException("Error: Role ."));
+                roles.add(userRole);
+                Set<Diallo> diallos = new HashSet<>();
+                for (Diallo diallo: boutique.getDiallos()){
+                    Diallo diallo1 = new Diallo();
+                    if (diallo.getUsername()!=null){
+                        diallo1.setUsername(diallo.getUsername());
+                        diallo1.setRoles(roles);
+                        diallo1.setBoutique(boutique1);
+                        diallos.add(diallo1);
+                        diallo1.setMoney(boutique.getPartDiallo());
+                        dialloRepository.save(diallo1);
+                        boutique1.setDiallos(diallos);
+                        System.out.println("diallo ===> "+ diallo1.getUsername());
+
+                    }
+                }
+            }
+        }
+
+
         return ResponseEntity.ok(new MessageResponse("Boutique registered successfully!"));
 
     }
