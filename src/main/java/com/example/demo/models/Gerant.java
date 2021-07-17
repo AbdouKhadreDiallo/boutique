@@ -17,6 +17,7 @@ public class Gerant extends User {
     private Boutique boutique;
 
     @OneToMany(mappedBy = "proprietaire", cascade = CascadeType.ALL)
+    @JsonIgnore
     private Set<Boutique> boutiques = new HashSet<>();
 
     public Gerant() {

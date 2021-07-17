@@ -10,12 +10,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Optional;
 
 @RestController
@@ -130,5 +129,32 @@ public class InventaireController {
             }
         }
         return ResponseEntity.ok().body(newInventaire);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('GERANT')")
+    ResponseEntity<?> inventaires(){
+        UserDetails actuallyConnected = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Optional<Gerant> gerant = gerantRepository.findByUsername(actuallyConnected.getUsername());
+        if (!gerant.isPresent()){
+            return ResponseEntity.notFound().build();
+        }
+        ArrayList<HashMap<String, String>> inventaires = new ArrayList<>();
+        for (Inventaire inventaire : inventaireRepository.findAll()){
+            if (gerant.get().getBoutique() == inventaire.getBoutique()){
+                HashMap<String, String> invent = new HashMap<String, String>();
+                invent.put("all depenses", String.valueOf(inventaire.getAllDepenses()));
+                invent.put("Benefice", String.valueOf(inventaire.getAllDepenses()));
+                invent.put("date", String.valueOf(inventaire.getDate()));
+                invent.put("statut", String.valueOf(inventaire.getInventaireStatus()));
+                invent.put("entrée d'argent", String.valueOf(inventaire.getMoneyIn()));
+                invent.put("part Diallo", String.valueOf(inventaire.getPart_Diallo()));
+                invent.put("part Gérant", String.valueOf(inventaire.getPart_Gerant()));
+                invent.put("part proprio", String.valueOf(inventaire.getPart_Propretaire()));
+
+                inventaires.add(invent);
+            }
+        }
+        return ResponseEntity.ok().body(inventaires);
     }
 }

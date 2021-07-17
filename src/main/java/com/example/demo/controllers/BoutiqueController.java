@@ -3,13 +3,8 @@ package com.example.demo.controllers;
 import com.example.demo.models.*;
 import com.example.demo.payload.response.MessageResponse;
 import com.example.demo.repository.*;
-import com.example.demo.security.service.UserDetailsImpl;
-import com.fasterxml.jackson.databind.ser.FilterProvider;
-import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
-import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.json.MappingJacksonValue;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -317,27 +312,58 @@ public class BoutiqueController {
     }
 
     @GetMapping(value = "/{boutiqueId}/diallo")
+    @PreAuthorize("hasRole('PROPRIETAIRE') or hasRole('GERANT') ")
     public ResponseEntity<?> getDiallo(@PathVariable("boutiqueId") Long boutiqueId){
         Boutique actualBoutique = boutiqueRepository.findById(boutiqueId).orElseThrow(()->new IllegalStateException("boutique with id"+boutiqueId+"does not exist"));
-        HashMap<String, String> hmap = new HashMap<String, String>();
+        UserDetails userPrincipal = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (!userPrincipal.getUsername().equals(actualBoutique.getProprietaire().getUsername()) || !userPrincipal.getUsername().equals(actualBoutique.getGerant().getUsername())){
+            return ResponseEntity.badRequest().body(new MessageResponse("dell dougou foussa yoone nekk"));
+        }
+        ArrayList<HashMap<String, String>> arrayList = new ArrayList<>();
         System.out.println("size ===>"+ actualBoutique.getDiallos().size());
         for(User boutique: actualBoutique.getDiallos()){
-
             if (dialloRepository.existsByUsername(boutique.getUsername())){
+                HashMap<String, String> hmap = new HashMap<String, String>();
                 hmap.put("boutique", String.valueOf(boutique.getId()));
                 hmap.put("username", boutique.getUsername());
+                hmap.put("Money", String.valueOf(boutique.getMoney()));
+                arrayList.add(hmap);
             }
 
         }
-            return ResponseEntity.ok().body(hmap);
+            return ResponseEntity.ok().body(arrayList);
+    }
+
+
+    @GetMapping
+    @PreAuthorize("hasRole('PROPRIETAIRE') or hasRole('GERANT') ")
+    public ResponseEntity<?> getThemAll(){
+        ArrayList<HashMap<String, String>> arrayList = new ArrayList<>();
+        UserDetails userPrincipal = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        for (Boutique boutique: boutiqueRepository.findAll()){
+            if (boutique.getProprietaire().getUsername().equals(userPrincipal.getUsername())){
+                HashMap<String, String> boutiqueOutput = new HashMap<String, String>();
+                boutiqueOutput.put("capital", String.valueOf(boutique.getCapital()));
+                boutiqueOutput.put("part propriétaire", String.valueOf(boutique.getPartProprietaire()));
+                boutiqueOutput.put("part gérant", String.valueOf(boutique.getPartGerant()));
+                boutiqueOutput.put("part Diallo", String.valueOf(boutique.getPartDiallo()));
+                arrayList.add(boutiqueOutput);
+            }
+            if (boutique.getGerant().getUsername().equals(userPrincipal.getUsername())){
+                HashMap<String, String> boutiqueOutput = new HashMap<String, String>();
+                boutiqueOutput.put("capital", String.valueOf(boutique.getCapital()));
+                boutiqueOutput.put("part propriétaire", String.valueOf(boutique.getPartProprietaire()));
+                boutiqueOutput.put("part gérant", String.valueOf(boutique.getPartGerant()));
+                boutiqueOutput.put("part Diallo", String.valueOf(boutique.getPartDiallo()));
+                boutiqueOutput.put("Diallo", "hey");
+                arrayList.add(boutiqueOutput);
+            }
+        }
+        return ResponseEntity.ok().body(arrayList);
     }
 
 
 
-    @GetMapping(value = "/alls")
-    List<Boutique> getThemAll(){
-        return boutiqueRepository.findAll();
-    }
 
 
 

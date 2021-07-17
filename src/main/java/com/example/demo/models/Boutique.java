@@ -19,8 +19,8 @@ public class Boutique {
     private Long partProprietaire;
     private Long partGerant;
     private Long partDiallo;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    private String name;
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "proprietaire_id")
     private User proprietaire;
 
@@ -125,6 +125,14 @@ public class Boutique {
 
     public void setPartDiallo(Long partDiallo) {
         this.partDiallo = partDiallo;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public Boutique(){}
